@@ -1,164 +1,139 @@
-import { useState } from "react";
+import { useEffect, useRef } from "react";
 import { useNotifications } from "./NotificationService";
-import { 
-  Popover, 
-  PopoverContent, 
-  PopoverTrigger 
-} from "@/components/ui/popover";
-import { 
-  Bell, 
-  Check, 
-  Trash2, 
-  Calendar, 
-  Info,
-  Clock, 
-  CheckCircle2
-} from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { format, isToday, isYesterday } from "date-fns";
-import { cn } from "@/lib/utils";
-import { Link } from "wouter";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Badge } from "@/components/ui/badge";
+import { Bell, Check, CheckCheck, Calendar, AlertCircle, HelpCircle } from "lucide-react";
+import { format, formatDistanceToNow } from "date-fns";
 
-export function NotificationDropdown() {
-  const [open, setOpen] = useState(false);
+export function NotificationDropdown({ onClose }) {
   const { 
     notifications, 
-    unreadCount, 
     markAsRead, 
     markAllAsRead, 
-    clearAllNotifications 
+    unreadCount 
   } = useNotifications();
-
-  // Format the notification timestamp
-  const formatTimestamp = (timestamp) => {
-    const date = new Date(timestamp);
+  
+  const dropdownRef = useRef(null);
+  
+  // Handle click outside to close dropdown
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        onClose();
+      }
+    }
     
-    if (isToday(date)) {
-      return `Today, ${format(date, "h:mm a")}`;
-    } else if (isYesterday(date)) {
-      return `Yesterday, ${format(date, "h:mm a")}`;
-    } else {
-      return format(date, "MMM d, h:mm a");
-    }
-  };
-
-  // Get icon for notification type
-  const getNotificationIcon = (type) => {
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [onClose]);
+  
+  // Get notification icon based on type
+  const getNotificationIcon = (type, priority) => {
     switch (type) {
-      case "action_reminder":
-        return <Calendar className="h-5 w-5 text-blue-500" />;
-      case "action_completed":
-        return <CheckCircle2 className="h-5 w-5 text-green-500" />;
-      case "action_due_soon":
-        return <Clock className="h-5 w-5 text-orange-500" />;
-      case "new_recommendation":
-        return <Info className="h-5 w-5 text-purple-500" />;
+      case "reminder":
+        return <Calendar className={`h-4 w-4 ${priority === "high" ? "text-destructive" : "text-muted-foreground"}`} />;
+      case "success":
+        return <Check className="h-4 w-4 text-green-500" />;
+      case "error":
+        return <AlertCircle className="h-4 w-4 text-destructive" />;
+      case "info":
+        return <HelpCircle className="h-4 w-4 text-blue-500" />;
       default:
-        return <Info className="h-5 w-5 text-primary" />;
+        return <Bell className="h-4 w-4 text-muted-foreground" />;
     }
   };
-
+  
+  // Get time text for notifications
+  const getTimeText = (dateStr) => {
+    const date = new Date(dateStr);
+    return formatDistanceToNow(date, { addSuffix: true });
+  };
+  
+  // Handle notification click
+  const handleNotificationClick = (notification) => {
+    if (!notification.read) {
+      markAsRead(notification.id);
+    }
+  };
+  
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative">
-          <Bell className="h-5 w-5" />
+    <div 
+      ref={dropdownRef}
+      className="absolute right-0 mt-2 w-80 rounded-md shadow-lg bg-card border z-50"
+    >
+      <div className="flex items-center justify-between p-3 border-b">
+        <div className="flex items-center">
+          <Bell className="mr-2 h-4 w-4" />
+          <h3 className="font-medium">Notifications</h3>
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-red-500 text-[10px] font-medium text-white">
-              {unreadCount > 9 ? "9+" : unreadCount}
-            </span>
+            <Badge className="ml-2" variant="secondary">
+              {unreadCount} new
+            </Badge>
           )}
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-4 border-b">
-          <h4 className="font-medium">Notifications</h4>
-          <div className="flex gap-1">
-            {notifications.length > 0 && (
-              <>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={markAllAsRead}
-                  className="h-8 px-2"
-                  title="Mark all as read"
-                >
-                  <Check className="h-4 w-4" />
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  size="sm"
-                  onClick={clearAllNotifications}
-                  className="h-8 px-2"
-                  title="Clear all"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </Button>
-              </>
-            )}
-          </div>
         </div>
-        
-        <div className="max-h-[300px] overflow-y-auto">
-          {notifications.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">
-              <p>No notifications yet</p>
-            </div>
-          ) : (
-            <div className="py-2">
-              {notifications.map(notification => (
-                <div 
-                  key={notification.id} 
-                  className={cn(
-                    "px-4 py-3 hover:bg-muted/40 transition-colors cursor-pointer",
-                    !notification.read && "bg-muted/20"
-                  )}
-                  onClick={() => {
-                    markAsRead(notification.id);
-                    // If it's an action notification, we could navigate to that action
-                    if (notification.actionId) {
-                      setOpen(false);
-                    }
-                  }}
-                >
-                  <div className="flex gap-3">
-                    <div className="flex-shrink-0 mt-1">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1 space-y-1">
-                      <p className={cn("text-sm", !notification.read && "font-medium")}>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          onClick={markAllAsRead}
+          disabled={unreadCount === 0}
+        >
+          <CheckCheck className="mr-1 h-4 w-4" />
+          Mark all read
+        </Button>
+      </div>
+      
+      <ScrollArea className="h-[300px]">
+        {notifications.length === 0 ? (
+          <div className="py-6 text-center text-muted-foreground">
+            <Bell className="h-8 w-8 mx-auto mb-2 opacity-20" />
+            <p>No notifications yet</p>
+          </div>
+        ) : (
+          <div className="py-1">
+            {notifications.map(notification => (
+              <div 
+                key={notification.id}
+                className={`px-4 py-3 hover:bg-accent cursor-pointer border-b last:border-b-0 transition-colors ${
+                  !notification.read ? "bg-muted/40" : ""
+                }`}
+                onClick={() => handleNotificationClick(notification)}
+              >
+                <div className="flex items-start">
+                  <div className="flex-shrink-0 mt-1">
+                    {getNotificationIcon(notification.type, notification.priority)}
+                  </div>
+                  <div className="ml-2 flex-1">
+                    <div className="flex justify-between">
+                      <p className={`text-sm font-medium ${!notification.read ? "font-semibold" : ""}`}>
                         {notification.title}
                       </p>
-                      <p className="text-sm text-muted-foreground line-clamp-2">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground">
-                        {formatTimestamp(notification.timestamp)}
-                      </p>
+                      <span className="text-xs text-muted-foreground">
+                        {getTimeText(notification.createdAt)}
+                      </span>
                     </div>
+                    <p className="text-sm text-muted-foreground mt-1">{notification.message}</p>
                   </div>
                 </div>
-              ))}
-            </div>
-          )}
-        </div>
-        
-        <Separator />
-        
-        <div className="p-2">
-          <Button 
-            variant="ghost" 
-            size="sm"
-            asChild
-            className="w-full justify-center"
-          >
-            <Link href="/settings">
-              Notification Settings
-            </Link>
-          </Button>
-        </div>
-      </PopoverContent>
-    </Popover>
+              </div>
+            ))}
+          </div>
+        )}
+      </ScrollArea>
+      
+      <div className="p-3 border-t">
+        <Button 
+          variant="link" 
+          size="sm" 
+          asChild
+          className="w-full justify-center"
+          onClick={onClose}
+        >
+          <a href="/settings#notifications">Manage notification settings</a>
+        </Button>
+      </div>
+    </div>
   );
 }

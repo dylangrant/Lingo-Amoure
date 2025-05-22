@@ -1,302 +1,234 @@
-import { useState, useEffect, createContext, useContext } from "react";
+import { createContext, useContext, useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { Bell } from "lucide-react";
-import { format } from "date-fns";
+import { getTierInfo } from "@/lib/utils";
+import { addDays, addHours, format, isPast, isFuture } from "date-fns";
 
-// Create context for notification service
+// Create a context for notifications
 const NotificationContext = createContext(null);
 
-export function useNotifications() {
-  return useContext(NotificationContext);
-}
-
-// Notification types
-export const NOTIFICATION_TYPES = {
-  ACTION_REMINDER: "action_reminder",
-  ACTION_COMPLETED: "action_completed",
-  ACTION_DUE_SOON: "action_due_soon",
-  NEW_RECOMMENDATION: "new_recommendation",
-};
-
+// Define the provider component
 export function NotificationProvider({ children }) {
-  const { toast } = useToast();
   const [notifications, setNotifications] = useState([]);
-  const [unreadCount, setUnreadCount] = useState(0);
-
-  // Load notifications from localStorage
+  const [settings, setSettings] = useState({
+    enabled: true,
+    emailEnabled: true,
+    pushEnabled: true,
+    smsEnabled: false,
+    reminderTimes: {
+      quick: 1, // hours before
+      medium: 12, // hours before
+      special: 24, // hours before
+      grand: 48, // hours before
+    }
+  });
+  const { toast } = useToast();
+  
+  // Load notifications from localStorage on mount
   useEffect(() => {
     const savedNotifications = localStorage.getItem("lovelingoNotifications");
+    const savedSettings = localStorage.getItem("lovelingoNotificationSettings");
+    
     if (savedNotifications) {
-      try {
-        const parsed = JSON.parse(savedNotifications);
-        setNotifications(parsed);
-        
-        // Count unread notifications
-        const unread = parsed.filter(notification => !notification.read).length;
-        setUnreadCount(unread);
-      } catch (error) {
-        console.error("Error loading notifications:", error);
-      }
+      setNotifications(JSON.parse(savedNotifications));
     }
     
-    // Setup notification system
-    setupNotificationSystem();
+    if (savedSettings) {
+      setSettings(JSON.parse(savedSettings));
+    }
+    
+    // Check for due notifications every minute
+    const intervalId = setInterval(checkDueNotifications, 60000);
+    
+    return () => clearInterval(intervalId);
   }, []);
-
-  // Setup browser notifications if enabled
-  const setupNotificationSystem = () => {
-    // Check for notification settings
-    const settingsString = localStorage.getItem("lovelingoNotificationSettings");
-    if (!settingsString) return;
-    
-    try {
-      const settings = JSON.parse(settingsString);
-      
-      // Request permission for browser notifications if enabled
-      if (settings.enabled && settings.pushEnabled) {
-        if (Notification.permission !== "granted" && Notification.permission !== "denied") {
-          Notification.requestPermission();
-        }
-      }
-    } catch (error) {
-      console.error("Error setting up notification system:", error);
-    }
-  };
-
-  // Check for scheduled actions and show notifications
+  
+  // Save notifications to localStorage whenever they change
   useEffect(() => {
-    // This would normally be done on the server side
-    // This is a client-side simulation for demo purposes
-    const checkScheduledActions = () => {
-      const settings = getNotificationSettings();
-      if (!settings || !settings.enabled) return;
-      
-      const scheduledActions = getScheduledActions();
-      if (!scheduledActions || scheduledActions.length === 0) return;
-      
-      const now = new Date();
-      
-      // Filter to actions that are due today or tomorrow
-      const upcomingActions = scheduledActions.filter(action => {
-        if (action.completed) return false;
-        
-        const actionDate = new Date(action.scheduledDate);
-        const diffTime = actionDate.getTime() - now.getTime();
-        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-        
-        return diffDays <= 2 && diffDays >= 0;
-      });
-      
-      // Send notifications for upcoming actions
-      upcomingActions.forEach(action => {
-        // Check if we've already notified for this action recently
-        // In a real app, we'd check against a "last_notified" field in the database
-        const notified = notifications.some(
-          n => n.actionId === action.id && 
-              new Date(n.timestamp) > new Date(Date.now() - 24 * 60 * 60 * 1000)
-        );
-        
-        if (!notified) {
-          const when = new Date(action.scheduledDate);
-          const isToday = when.toDateString() === now.toDateString();
-          
-          addNotification({
-            type: NOTIFICATION_TYPES.ACTION_REMINDER,
-            title: isToday ? "Action Due Today" : "Action Due Tomorrow",
-            message: action.title,
-            actionId: action.id,
-            actionData: action,
-          });
-        }
-      });
-    };
+    localStorage.setItem("lovelingoNotifications", JSON.stringify(notifications));
     
-    // Check once on mount
-    checkScheduledActions();
-    
-    // Then check periodically
-    const interval = setInterval(checkScheduledActions, 60 * 60 * 1000); // every hour
-    
-    return () => clearInterval(interval);
+    // Check for unread notifications
+    const unread = notifications.filter(n => !n.read).length;
+    if (unread > 0) {
+      document.title = `(${unread}) LoveLingo`;
+    } else {
+      document.title = "LoveLingo";
+    }
   }, [notifications]);
-
-  // Helper function to get notification settings
-  const getNotificationSettings = () => {
-    try {
-      const settings = localStorage.getItem("lovelingoNotificationSettings");
-      return settings ? JSON.parse(settings) : null;
-    } catch (error) {
-      console.error("Error getting notification settings:", error);
-      return null;
+  
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    localStorage.setItem("lovelingoNotificationSettings", JSON.stringify(settings));
+  }, [settings]);
+  
+  // Check for notifications that are due to be shown
+  const checkDueNotifications = () => {
+    if (!settings.enabled) return;
+    
+    const now = new Date();
+    const dueNotifications = notifications.filter(
+      n => !n.shown && !n.read && isPast(new Date(n.dueAt))
+    );
+    
+    if (dueNotifications.length > 0) {
+      // Mark notifications as shown
+      const updatedNotifications = notifications.map(n => {
+        if (dueNotifications.some(dn => dn.id === n.id)) {
+          return { ...n, shown: true };
+        }
+        return n;
+      });
+      
+      setNotifications(updatedNotifications);
+      
+      // Show toast for the most recent due notification
+      const mostRecent = dueNotifications.sort(
+        (a, b) => new Date(b.createdAt) - new Date(a.createdAt)
+      )[0];
+      
+      toast({
+        title: mostRecent.title,
+        description: mostRecent.message,
+        duration: 10000,
+      });
     }
   };
-
-  // Helper function to get scheduled actions
-  const getScheduledActions = () => {
-    try {
-      const actions = localStorage.getItem("lovelingoScheduledActions");
-      return actions ? JSON.parse(actions) : [];
-    } catch (error) {
-      console.error("Error getting scheduled actions:", error);
-      return [];
-    }
-  };
-
+  
   // Add a new notification
-  const addNotification = async (notification) => {
+  const addNotification = (notification) => {
     const newNotification = {
-      id: Date.now().toString(),
-      timestamp: new Date().toISOString(),
+      id: `notif-${Date.now()}`,
+      createdAt: new Date().toISOString(),
       read: false,
-      ...notification,
+      shown: false,
+      ...notification
     };
     
-    // Update state and localStorage
-    setNotifications(prev => {
-      const updated = [newNotification, ...prev];
-      localStorage.setItem("lovelingoNotifications", JSON.stringify(updated));
-      return updated;
-    });
+    setNotifications(prev => [newNotification, ...prev]);
     
-    setUnreadCount(prev => prev + 1);
+    return newNotification;
+  };
+  
+  // Mark a notification as read
+  const markAsRead = (notificationId) => {
+    setNotifications(prev => 
+      prev.map(n => 
+        n.id === notificationId 
+          ? { ...n, read: true } 
+          : n
+      )
+    );
+  };
+  
+  // Mark all notifications as read
+  const markAllAsRead = () => {
+    setNotifications(prev => 
+      prev.map(n => ({ ...n, read: true }))
+    );
+  };
+  
+  // Schedule a notification for an action
+  const scheduleActionNotification = (action) => {
+    if (!settings.enabled) return;
     
-    // Show toast notification
+    const scheduledDate = new Date(action.scheduledDate);
+    const { effortText } = getTierInfo(action.tier);
+    const tierKey = action.tier.toLowerCase();
+    
+    // Calculate due time based on tier
+    const hoursBefore = settings.reminderTimes[tierKey] || 24;
+    const dueAt = addHours(scheduledDate, -hoursBefore).toISOString();
+    
+    // Create the notification
+    const notification = {
+      title: `Reminder: ${action.title}`,
+      message: `Don't forget your ${effortText} action "${action.title}" scheduled for ${format(scheduledDate, "MMMM d 'at' h:mm a")}`,
+      type: "reminder",
+      actionId: action.id,
+      dueAt,
+      priority: action.tier === "grand" ? "high" : action.tier === "special" ? "medium" : "normal"
+    };
+    
+    return addNotification(notification);
+  };
+  
+  // Send a notification when an action is completed
+  const sendCompletionNotification = (action) => {
+    if (!settings.enabled) return;
+    
+    const { effortText } = getTierInfo(action.tier);
+    const notification = {
+      title: "Action Completed",
+      message: `You completed the ${effortText} action "${action.title}"`,
+      type: "success",
+      actionId: action.id,
+      dueAt: new Date().toISOString(), // Show immediately
+      priority: "normal"
+    };
+    
+    const newNotification = addNotification(notification);
+    
     toast({
       title: notification.title,
       description: notification.message,
-      duration: 5000,
     });
     
-    // Show browser notification if enabled
-    showBrowserNotification(notification);
-    
-    // In a real app, we would also send email/SMS here
-    await simulateExternalNotifications(notification);
+    return newNotification;
   };
-
-  // Show browser notification if enabled
-  const showBrowserNotification = (notification) => {
-    const settings = getNotificationSettings();
-    if (!settings || !settings.enabled || !settings.pushEnabled) return;
+  
+  // Send a feedback notification
+  const sendFeedbackNotification = (action, feedback) => {
+    if (!settings.enabled) return;
     
-    if (Notification.permission === "granted") {
-      new Notification(notification.title, {
-        body: notification.message,
-        icon: "/favicon.ico"
-      });
-    }
-  };
-
-  // Simulate sending external notifications (email/SMS)
-  const simulateExternalNotifications = async (notification) => {
-    const settings = getNotificationSettings();
-    if (!settings || !settings.enabled) return;
+    const message = feedback.positive 
+      ? `Your loved one really appreciated "${action.title}"! They gave it ${feedback.rating} stars.`
+      : `Your action "${action.title}" could have gone better. They gave it ${feedback.rating} stars.`;
     
-    // Log simulated notifications to console
-    if (settings.emailEnabled && settings.email) {
-      console.log(`[EMAIL NOTIFICATION] to ${settings.email}:`, notification);
-    }
-    
-    if (settings.smsEnabled && settings.phoneNumber) {
-      console.log(`[SMS NOTIFICATION] to ${settings.phoneNumber}:`, notification);
-    }
-    
-    // In a real app, this would call an API endpoint to send the notifications
-    return Promise.resolve();
-  };
-
-  // Mark notification as read
-  const markAsRead = (notificationId) => {
-    setNotifications(prev => {
-      const updated = prev.map(notification => 
-        notification.id === notificationId 
-          ? { ...notification, read: true } 
-          : notification
-      );
-      
-      localStorage.setItem("lovelingoNotifications", JSON.stringify(updated));
-      return updated;
-    });
-    
-    setUnreadCount(prev => Math.max(0, prev - 1));
-  };
-
-  // Mark all notifications as read
-  const markAllAsRead = () => {
-    setNotifications(prev => {
-      const updated = prev.map(notification => ({ ...notification, read: true }));
-      localStorage.setItem("lovelingoNotifications", JSON.stringify(updated));
-      return updated;
-    });
-    
-    setUnreadCount(0);
-  };
-
-  // Clear all notifications
-  const clearAllNotifications = () => {
-    setNotifications([]);
-    setUnreadCount(0);
-    localStorage.removeItem("lovelingoNotifications");
-  };
-
-  // Manually trigger a notification for an action (used when scheduling)
-  const scheduleActionNotification = (action) => {
-    const settings = getNotificationSettings();
-    if (!settings || !settings.enabled) return;
-    
-    addNotification({
-      type: NOTIFICATION_TYPES.ACTION_DUE_SOON,
-      title: "Action Scheduled",
-      message: `${action.title} scheduled for ${format(new Date(action.scheduledDate), "MMM d")}`,
+    const notification = {
+      title: "Feedback Received",
+      message,
+      type: feedback.positive ? "success" : "info",
       actionId: action.id,
-      actionData: action,
-    });
-  };
-
-  // Completion notification
-  const sendCompletionNotification = (action) => {
-    const settings = getNotificationSettings();
-    if (!settings || !settings.enabled || !settings.notifyOnCompletion) return;
+      dueAt: new Date().toISOString(), // Show immediately
+      priority: "high"
+    };
     
-    addNotification({
-      type: NOTIFICATION_TYPES.ACTION_COMPLETED,
-      title: "Action Completed",
-      message: `Great job completing: ${action.title}`,
-      actionId: action.id,
-      actionData: action,
-    });
+    return addNotification(notification);
   };
-
+  
+  // Update notification settings
+  const updateSettings = (newSettings) => {
+    setSettings({ ...settings, ...newSettings });
+  };
+  
+  // Calculate the number of unread notifications
+  const unreadCount = notifications.filter(n => !n.read).length;
+  
+  // Define the context value
+  const contextValue = {
+    notifications,
+    settings,
+    unreadCount,
+    addNotification,
+    markAsRead,
+    markAllAsRead,
+    scheduleActionNotification,
+    sendCompletionNotification,
+    sendFeedbackNotification,
+    updateSettings
+  };
+  
   return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unreadCount,
-        addNotification,
-        markAsRead,
-        markAllAsRead,
-        clearAllNotifications,
-        scheduleActionNotification,
-        sendCompletionNotification
-      }}
-    >
+    <NotificationContext.Provider value={contextValue}>
       {children}
     </NotificationContext.Provider>
   );
 }
 
-// A simple notification icon that displays unread count
-export function NotificationIndicator() {
-  const { unreadCount, markAllAsRead } = useNotifications();
-  
-  return (
-    <div className="relative" onClick={markAllAsRead}>
-      <Bell className="h-6 w-6" />
-      {unreadCount > 0 && (
-        <div className="absolute -top-1 -right-1 flex items-center justify-center w-5 h-5 bg-red-500 text-white text-xs rounded-full">
-          {unreadCount > 9 ? "9+" : unreadCount}
-        </div>
-      )}
-    </div>
-  );
+// Custom hook for using the notification context
+export function useNotifications() {
+  const context = useContext(NotificationContext);
+  if (!context) {
+    throw new Error("useNotifications must be used within a NotificationProvider");
+  }
+  return context;
 }

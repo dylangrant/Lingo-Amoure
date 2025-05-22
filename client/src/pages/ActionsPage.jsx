@@ -19,9 +19,12 @@ import { format } from "date-fns";
 import { cn } from "@/lib/utils";
 import { LOVE_LANGUAGE_OPTIONS, ACTION_TIER_OPTIONS } from "@/constants/loveLanguages";
 import { getRecommendedActions, getActionsByLoveLanguage, getActionsByTier, addCustomAction } from "@/services/recommendationEngine";
+import { AppHeader } from "@/components/layout/AppHeader";
+import { useNotifications } from "@/components/notifications/NotificationService";
 
 const ActionsPage = () => {
   const { user, logout } = useAuth();
+  const { scheduleActionNotification, sendCompletionNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState("upcoming");
   const [actions, setActions] = useState([]);
   const [scheduledActions, setScheduledActions] = useState([]);
@@ -114,8 +117,12 @@ const ActionsPage = () => {
         };
         
         // Add to completed actions
-        setCompletedActions(prev => [...prev, completedAction]);
-        localStorage.setItem("lovelingoCompletedActions", JSON.stringify([...completedActions, completedAction]));
+        const newCompletedActions = [...completedActions, completedAction];
+        setCompletedActions(newCompletedActions);
+        localStorage.setItem("lovelingoCompletedActions", JSON.stringify(newCompletedActions));
+        
+        // Send completion notification
+        sendCompletionNotification(completedAction);
         
         return completedAction;
       }
