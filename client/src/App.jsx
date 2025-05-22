@@ -1,10 +1,9 @@
-import { Switch, Route } from "wouter";
+import { Switch, Route, useLocation } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
-import { createClient, Provider } from 'urql';
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { queryClient } from "./lib/queryClient";
-import { useState } from "react";
+import { createContext, useState, useContext } from "react";
 import { AppStateProvider } from "./context/AppStateContext";
 
 // Pages
@@ -14,28 +13,58 @@ import QuizPage from "@/pages/QuizPage";
 import SettingsPage from "@/pages/SettingsPage";
 import ActionsPage from "@/pages/ActionsPage";
 import HistoryPage from "@/pages/HistoryPage";
-import LoginScreen from "@/components/auth/LoginScreen";
+import LoginPage from "./pages/LoginPage";
 
-// Create simple client or use a dummy placeholder until we fully implement GraphQL
-const urqlClient = {
-  executeQuery: () => Promise.resolve({ data: {} }),
-  executeMutation: () => Promise.resolve({ data: {} }),
-  executeSubscription: () => ({ unsubscribe: () => {} })
-};
+// Create Auth Context
+const AuthContext = createContext(null);
 
-function Router() {
-  const [authenticated, setAuthenticated] = useState(false);
+export function useAuth() {
+  return useContext(AuthContext);
+}
 
-  // Simple temporary auth check
-  const isAuthenticated = authenticated;
+// Auth Provider component
+function AuthProvider({ children }) {
+  const [user, setUser] = useState(null);
+  const [location, setLocation] = useLocation();
+
+  const login = (userData) => {
+    setUser(userData);
+    setLocation("/");
+  };
+
+  const logout = () => {
+    setUser(null);
+    setLocation("/login");
+  };
 
   return (
+    <AuthContext.Provider value={{ user, login, logout, isAuthenticated: !!user }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
+
+function ProtectedRoute({ component: Component }) {
+  const { isAuthenticated } = useAuth();
+  const [, setLocation] = useLocation();
+
+  if (!isAuthenticated) {
+    setLocation("/login");
+    return null;
+  }
+
+  return <Component />;
+}
+
+function Router() {
+  return (
     <Switch>
-      <Route path="/" component={() => isAuthenticated ? <HomePage /> : <LoginScreen />} />
-      <Route path="/quiz" component={() => isAuthenticated ? <QuizPage /> : <LoginScreen />} />
-      <Route path="/settings" component={() => isAuthenticated ? <SettingsPage /> : <LoginScreen />} />
-      <Route path="/actions" component={() => isAuthenticated ? <ActionsPage /> : <LoginScreen />} />
-      <Route path="/history" component={() => isAuthenticated ? <HistoryPage /> : <LoginScreen />} />
+      <Route path="/login" component={LoginPage} />
+      <Route path="/" component={() => <ProtectedRoute component={HomePage} />} />
+      <Route path="/quiz" component={() => <ProtectedRoute component={QuizPage} />} />
+      <Route path="/settings" component={() => <ProtectedRoute component={SettingsPage} />} />
+      <Route path="/actions" component={() => <ProtectedRoute component={ActionsPage} />} />
+      <Route path="/history" component={() => <ProtectedRoute component={HistoryPage} />} />
       <Route component={NotFound} />
     </Switch>
   );
@@ -44,14 +73,14 @@ function Router() {
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <Provider value={urqlClient}>
+      <AuthProvider>
         <AppStateProvider>
           <TooltipProvider>
             <Toaster />
             <Router />
           </TooltipProvider>
         </AppStateProvider>
-      </Provider>
+      </AuthProvider>
     </QueryClientProvider>
   );
 }
