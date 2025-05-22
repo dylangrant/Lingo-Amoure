@@ -1,0 +1,15 @@
+I need a PWA that enables people to remember to do different aspects of the 5 love languages. Please follow the MVP steps in order of importance and make sure to follow every technical requirement - if you are unsure please ask.
+
+MVP needs:
+1. The most import part of this app is that it will randomly remind (email, text, or push notifications) to perform that love language action. The easier/least expensive actions are in shorter intervals, randomly between a few days to like 10 day intervals. The large/more complex/ or really expensive ones at much larger intervals. It will let them organize actions into these tiered (probably about 3-4 tiers total) and optionally set the interval ranges. 
+2. It should have a "recommendation engine" that will suggest actions for the user based on the partner's love language. This is to prevent the user from having to do a ton of up-front work to make the app useful. The user should be able to thumbs up or down the recommendation, and doing so will inform the recommendation engine so that it can intuitively suggest or not suggest similar things. 
+3. Eventually, I'll want a browser extension that let's users add products from a page they're on, but for now letting them add one via a link will suffice.
+4. It needs to have a quiz that helps determine (if needed) their partner's primary love language. 
+5. To monetize, I'll need to create affiliate partnerships with companies like amazon, or groupon (for quality time or acts of service). So, please include integration placeholder code. The backend should be decoupled from the frontend.
+
+Technical requirements:
+- Frontend and backend are decoupled
+- Frontend is Vite (JavaScript version) - in React, JavaScript (no TypeScript, so never any file extensions with `.ts`), Recoil.js, styled-components (no tailwind or postcss), and wouter (for routing). Please use modern design.
+- Backend is in Node with Fastify, and JavaScript (no TypeScript). If possible use neo4j as the DB - I think it may be esp. useful for the recommendation engine. If that's overkill, use whatever DB you feel makes the most sense.
+- Use only oauth, no manual email logins. Use the most popular ones, like google, facebook, apple, and microsoft.
+- If you think it may eventually make sense for performance reasons later, please start with GraphQL. Mercurius for the backend and urql for the frontend.
