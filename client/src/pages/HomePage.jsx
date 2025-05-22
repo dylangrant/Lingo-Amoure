@@ -11,6 +11,7 @@ import { CalendarHeart, Gift, MessageSquareHeart, Clock, Settings, CalendarCheck
 import { LOVE_LANGUAGE_OPTIONS } from "@/constants/loveLanguages";
 import { Link } from "wouter";
 import LoveLanguageQuiz from "@/components/quiz/LoveLanguageQuiz";
+import { AppHeader } from "@/components/layout/AppHeader";
 import RecommendedActions from "@/components/actions/RecommendedActions";
 
 export default function HomePage() {
@@ -74,13 +75,7 @@ export default function HomePage() {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground p-4 flex justify-between items-center">
-        <h1 className="text-2xl font-bold">LoveLingo</h1>
-        <div className="flex items-center gap-4">
-          <span>Hello, {user?.name || "Friend"}</span>
-          <Button variant="secondary" size="sm" onClick={logout}>Logout</Button>
-        </div>
-      </header>
+      <AppHeader />
 
       <div className="container mx-auto p-6">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

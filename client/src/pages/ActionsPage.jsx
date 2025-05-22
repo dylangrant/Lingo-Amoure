@@ -73,12 +73,12 @@ const ActionsPage = () => {
     let filtered = [...actions];
 
     // Apply love language filter
-    if (filterLoveLanguage) {
+    if (filterLoveLanguage && filterLoveLanguage !== "all") {
       filtered = filtered.filter(action => action.loveLanguage === filterLoveLanguage);
     }
 
     // Apply tier filter
-    if (filterTier) {
+    if (filterTier && filterTier !== "all") {
       filtered = filtered.filter(action => action.tier === filterTier);
     }
 
@@ -196,15 +196,7 @@ const ActionsPage = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="bg-primary text-primary-foreground p-4 flex justify-between items-center">
-        <h1 className="text-2xl font-bold">LoveLingo</h1>
-        <div className="flex items-center gap-4">
-          <Button variant="secondary" size="sm" asChild>
-            <Link href="/">Dashboard</Link>
-          </Button>
-          <Button variant="secondary" size="sm" onClick={logout}>Logout</Button>
-        </div>
-      </header>
+      <AppHeader />
 
       <div className="container mx-auto p-6">
         <div className="flex justify-between items-center mb-6">
@@ -342,7 +334,7 @@ const ActionsPage = () => {
                           <SelectValue placeholder="Love Language" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Languages</SelectItem>
+                          <SelectItem value="all">All Languages</SelectItem>
                           {LOVE_LANGUAGE_OPTIONS.map(option => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}
@@ -356,7 +348,7 @@ const ActionsPage = () => {
                           <SelectValue placeholder="Effort Level" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="">All Levels</SelectItem>
+                          <SelectItem value="all">All Levels</SelectItem>
                           {ACTION_TIER_OPTIONS.map(option => (
                             <SelectItem key={option.value} value={option.value}>
                               {option.label}

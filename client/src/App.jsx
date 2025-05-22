@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { queryClient } from "./lib/queryClient";
 import { createContext, useState, useContext } from "react";
 import { AppStateProvider } from "./context/AppStateContext";
+import { NotificationProvider } from "@/components/notifications/NotificationService";
 
 // Pages
 import NotFound from "@/pages/not-found";
@@ -70,15 +71,19 @@ function Router() {
   );
 }
 
+
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
         <AppStateProvider>
-          <TooltipProvider>
-            <Toaster />
-            <Router />
-          </TooltipProvider>
+          <NotificationProvider>
+            <TooltipProvider>
+              <Toaster />
+              <Router />
+            </TooltipProvider>
+          </NotificationProvider>
         </AppStateProvider>
       </AuthProvider>
     </QueryClientProvider>
