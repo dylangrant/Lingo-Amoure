@@ -15,10 +15,12 @@ import { Link } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import { ACTION_TIER_OPTIONS } from "@/constants/loveLanguages";
 import { AppHeader } from "@/components/layout/AppHeader";
+import { useNotifications } from "@/components/notifications/NotificationService";
 
 const SettingsPage = () => {
   const { user, logout } = useAuth();
   const { toast } = useToast();
+  const { notifications, settings, updateSettings: updateNotificationSettings, markAllAsRead, addNotification } = useNotifications();
   const [activeTab, setActiveTab] = useState("notifications");
   const [notificationSettings, setNotificationSettings] = useState({
     enabled: true,
@@ -119,7 +121,7 @@ const SettingsPage = () => {
   };
 
   // Update a specific setting
-  const updateSettings = (path, value) => {
+  const updateLocalSettings = (path, value) => {
     setNotificationSettings(prev => {
       // Create a deep copy of the previous state
       const newSettings = JSON.parse(JSON.stringify(prev));
@@ -131,6 +133,9 @@ const SettingsPage = () => {
       } else {
         newSettings[path] = value;
       }
+      
+      // Sync with notification service
+      updateNotificationSettings(newSettings);
       
       return newSettings;
     });
