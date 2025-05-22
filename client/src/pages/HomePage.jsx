@@ -11,6 +11,7 @@ import { CalendarHeart, Gift, MessageSquareHeart, Clock, Settings, CalendarCheck
 import { LOVE_LANGUAGE_OPTIONS } from "@/constants/loveLanguages";
 import { Link } from "wouter";
 import LoveLanguageQuiz from "@/components/quiz/LoveLanguageQuiz";
+import RecommendedActions from "@/components/actions/RecommendedActions";
 
 export default function HomePage() {
   const { user, logout } = useAuth();
@@ -151,6 +152,12 @@ export default function HomePage() {
                     </Button>
                   </CardFooter>
                 </Card>
+
+                {/* Recommended Actions */}
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-3">Personalized Recommendations</h3>
+                  <RecommendedActions partner={partner} count={4} />
+                </div>
               </>
             ) : (
               <Card>
