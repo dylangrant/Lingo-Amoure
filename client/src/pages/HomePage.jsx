@@ -6,9 +6,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CalendarHeart, Gift, MessageSquareHeart, Clock, Settings, CalendarCheck2 } from "lucide-react";
 import { LOVE_LANGUAGE_OPTIONS } from "@/constants/loveLanguages";
 import { Link } from "wouter";
+import LoveLanguageQuiz from "@/components/quiz/LoveLanguageQuiz";
 
 export default function HomePage() {
   const { user, logout } = useAuth();
@@ -16,17 +18,29 @@ export default function HomePage() {
   const [partner, setPartner] = useState(null);
   const [newPartner, setNewPartner] = useState({
     name: "",
-    primaryLoveLanguage: ""
+    primaryLoveLanguage: "",
+    secondaryLoveLanguage: ""
   });
+  const [activeTab, setActiveTab] = useState("manual");
 
   const handleAddPartner = (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
     setPartner({
       id: "partner-1",
       name: newPartner.name,
-      primaryLoveLanguage: newPartner.primaryLoveLanguage
+      primaryLoveLanguage: newPartner.primaryLoveLanguage,
+      secondaryLoveLanguage: newPartner.secondaryLoveLanguage
     });
     setShowAddPartner(false);
+  };
+  
+  const handleQuizComplete = (results) => {
+    setNewPartner({
+      ...newPartner,
+      primaryLoveLanguage: results.primary,
+      secondaryLoveLanguage: results.secondary
+    });
+    setActiveTab("manual"); // Switch back to manual tab to review and save
   };
 
   const upcomingActions = [
@@ -214,49 +228,95 @@ export default function HomePage() {
 
       {/* Add Partner Dialog */}
       <Dialog open={showAddPartner} onOpenChange={setShowAddPartner}>
-        <DialogContent>
+        <DialogContent className="max-w-3xl">
           <DialogHeader>
             <DialogTitle>{partner ? "Edit Partner Information" : "Add Your Partner"}</DialogTitle>
             <DialogDescription>
               Enter your partner's details to personalize your experience
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleAddPartner}>
-            <div className="space-y-4 py-4">
-              <div className="space-y-2">
-                <Label htmlFor="partner-name">Partner's Name</Label>
-                <Input 
-                  id="partner-name" 
-                  value={newPartner.name}
-                  onChange={(e) => setNewPartner({...newPartner, name: e.target.value})}
-                  placeholder="Enter name"
-                  required
-                />
+          
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="manual">Manual Entry</TabsTrigger>
+              <TabsTrigger value="quiz">Take Quiz</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="manual">
+              <form onSubmit={handleAddPartner}>
+                <div className="space-y-4 py-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="partner-name">Partner's Name</Label>
+                    <Input 
+                      id="partner-name" 
+                      value={newPartner.name}
+                      onChange={(e) => setNewPartner({...newPartner, name: e.target.value})}
+                      placeholder="Enter name"
+                      required
+                    />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="primary-language">Primary Love Language</Label>
+                    <Select
+                      value={newPartner.primaryLoveLanguage}
+                      onValueChange={(value) => setNewPartner({...newPartner, primaryLoveLanguage: value})}
+                      required
+                    >
+                      <SelectTrigger id="primary-language">
+                        <SelectValue placeholder="Select primary love language" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LOVE_LANGUAGE_OPTIONS.map(option => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="secondary-language">Secondary Love Language</Label>
+                    <Select
+                      value={newPartner.secondaryLoveLanguage}
+                      onValueChange={(value) => setNewPartner({...newPartner, secondaryLoveLanguage: value})}
+                    >
+                      <SelectTrigger id="secondary-language">
+                        <SelectValue placeholder="Select secondary love language (optional)" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {LOVE_LANGUAGE_OPTIONS.map(option => (
+                          <SelectItem 
+                            key={option.value} 
+                            value={option.value}
+                            disabled={option.value === newPartner.primaryLoveLanguage}
+                          >
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+                <DialogFooter>
+                  <Button type="submit" disabled={!newPartner.name || !newPartner.primaryLoveLanguage}>
+                    Save
+                  </Button>
+                </DialogFooter>
+              </form>
+            </TabsContent>
+            
+            <TabsContent value="quiz">
+              <div className="py-4">
+                <p className="text-sm text-muted-foreground mb-6">
+                  Take this short quiz to determine your partner's love languages. 
+                  The results will automatically update your partner's profile.
+                </p>
+                <LoveLanguageQuiz onComplete={handleQuizComplete} />
               </div>
-              <div className="space-y-2">
-                <Label htmlFor="love-language">Primary Love Language</Label>
-                <Select
-                  value={newPartner.primaryLoveLanguage}
-                  onValueChange={(value) => setNewPartner({...newPartner, primaryLoveLanguage: value})}
-                  required
-                >
-                  <SelectTrigger id="love-language">
-                    <SelectValue placeholder="Select love language" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LOVE_LANGUAGE_OPTIONS.map(option => (
-                      <SelectItem key={option.value} value={option.value}>
-                        {option.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button type="submit">Save</Button>
-            </DialogFooter>
-          </form>
+            </TabsContent>
+          </Tabs>
         </DialogContent>
       </Dialog>
     </div>
