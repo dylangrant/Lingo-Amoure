@@ -20,17 +20,23 @@ export default function HomePage() {
   const [newPartner, setNewPartner] = useState({
     name: "",
     primaryLoveLanguage: "",
-    secondaryLoveLanguage: ""
+    secondaryLoveLanguage: "",
+    birthday: "",
+    gender: "",
+    orientation: ""
   });
   const [activeTab, setActiveTab] = useState("manual");
 
   const handleAddPartner = (e) => {
     if (e) e.preventDefault();
     setPartner({
-      id: "partner-1",
+      id: "person-" + Date.now(),
       name: newPartner.name,
       primaryLoveLanguage: newPartner.primaryLoveLanguage,
-      secondaryLoveLanguage: newPartner.secondaryLoveLanguage
+      secondaryLoveLanguage: newPartner.secondaryLoveLanguage,
+      birthday: newPartner.birthday,
+      gender: newPartner.gender,
+      orientation: newPartner.orientation
     });
     setShowAddPartner(false);
   };
@@ -86,21 +92,50 @@ export default function HomePage() {
               <>
                 <Card>
                   <CardHeader>
-                    <CardTitle>Your Partner</CardTitle>
-                    <CardDescription>Manage your relationship information</CardDescription>
+                    <CardTitle>{partner.name}</CardTitle>
+                    <CardDescription>Manage relationship information</CardDescription>
                   </CardHeader>
                   <CardContent>
                     <div className="space-y-4">
-                      <div>
-                        <Label className="text-base">Name</Label>
-                        <p className="text-xl font-medium">{partner.name}</p>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div>
+                          <Label className="text-base">Primary Love Language</Label>
+                          <p className="text-lg font-medium">
+                            {LOVE_LANGUAGE_OPTIONS.find(lang => lang.value === partner.primaryLoveLanguage)?.label || "Not set"}
+                          </p>
+                        </div>
+                        {partner.secondaryLoveLanguage && (
+                          <div>
+                            <Label className="text-base">Secondary Love Language</Label>
+                            <p className="text-lg font-medium">
+                              {LOVE_LANGUAGE_OPTIONS.find(lang => lang.value === partner.secondaryLoveLanguage)?.label || "Not set"}
+                            </p>
+                          </div>
+                        )}
                       </div>
-                      <div>
-                        <Label className="text-base">Primary Love Language</Label>
-                        <p className="text-xl font-medium">
-                          {LOVE_LANGUAGE_OPTIONS.find(lang => lang.value === partner.primaryLoveLanguage)?.label || "Not set"}
-                        </p>
-                      </div>
+                      
+                      {(partner.birthday || partner.gender || partner.orientation) && (
+                        <div className="grid grid-cols-3 gap-4 mt-2 pt-2 border-t">
+                          {partner.birthday && (
+                            <div>
+                              <Label className="text-sm text-muted-foreground">Birthday</Label>
+                              <p className="text-sm">{new Date(partner.birthday).toLocaleDateString()}</p>
+                            </div>
+                          )}
+                          {partner.gender && (
+                            <div>
+                              <Label className="text-sm text-muted-foreground">Gender</Label>
+                              <p className="text-sm capitalize">{partner.gender}</p>
+                            </div>
+                          )}
+                          {partner.orientation && (
+                            <div>
+                              <Label className="text-sm text-muted-foreground">Orientation</Label>
+                              <p className="text-sm capitalize">{partner.orientation}</p>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
                   </CardContent>
                   <CardFooter>
@@ -109,12 +144,16 @@ export default function HomePage() {
                       onClick={() => {
                         setNewPartner({
                           name: partner.name,
-                          primaryLoveLanguage: partner.primaryLoveLanguage
+                          primaryLoveLanguage: partner.primaryLoveLanguage,
+                          secondaryLoveLanguage: partner.secondaryLoveLanguage,
+                          birthday: partner.birthday,
+                          gender: partner.gender,
+                          orientation: partner.orientation
                         });
                         setShowAddPartner(true);
                       }}
                     >
-                      Edit Partner Info
+                      Edit Information
                     </Button>
                   </CardFooter>
                 </Card>
@@ -163,14 +202,14 @@ export default function HomePage() {
               <Card>
                 <CardHeader>
                   <CardTitle>Get Started</CardTitle>
-                  <CardDescription>Add your partner to start your love language journey</CardDescription>
+                  <CardDescription>Add someone you love to start your love language journey</CardDescription>
                 </CardHeader>
                 <CardContent>
                   <p className="mb-4">
-                    Welcome to LoveLingo! To get started, add information about your partner. 
+                    Welcome to LoveLingo! To get started, add information about someone you love. 
                     This will help us tailor recommendations based on their love language preferences.
                   </p>
-                  <Button onClick={() => setShowAddPartner(true)}>Add Partner</Button>
+                  <Button onClick={() => setShowAddPartner(true)}>Add</Button>
                 </CardContent>
               </Card>
             )}
@@ -233,13 +272,13 @@ export default function HomePage() {
         </div>
       </div>
 
-      {/* Add Partner Dialog */}
+      {/* Add Person Dialog */}
       <Dialog open={showAddPartner} onOpenChange={setShowAddPartner}>
         <DialogContent className="max-w-3xl">
           <DialogHeader>
-            <DialogTitle>{partner ? "Edit Partner Information" : "Add Your Partner"}</DialogTitle>
+            <DialogTitle>{partner ? "Edit Information" : "Add Someone You Love"}</DialogTitle>
             <DialogDescription>
-              Enter your partner's details to personalize your experience
+              Enter their details to personalize your experience
             </DialogDescription>
           </DialogHeader>
           
@@ -253,14 +292,68 @@ export default function HomePage() {
               <form onSubmit={handleAddPartner}>
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
-                    <Label htmlFor="partner-name">Partner's Name</Label>
+                    <Label htmlFor="person-name">Name</Label>
                     <Input 
-                      id="partner-name" 
+                      id="person-name" 
                       value={newPartner.name}
                       onChange={(e) => setNewPartner({...newPartner, name: e.target.value})}
                       placeholder="Enter name"
                       required
                     />
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="birthday">Birthday (Optional)</Label>
+                    <Input 
+                      id="birthday" 
+                      type="date"
+                      value={newPartner.birthday}
+                      onChange={(e) => setNewPartner({...newPartner, birthday: e.target.value})}
+                      placeholder="Select birthday"
+                    />
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="gender">Gender Identity (Optional)</Label>
+                      <Select
+                        value={newPartner.gender}
+                        onValueChange={(value) => setNewPartner({...newPartner, gender: value})}
+                      >
+                        <SelectTrigger id="gender">
+                          <SelectValue placeholder="Select gender" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="male">Male</SelectItem>
+                          <SelectItem value="female">Female</SelectItem>
+                          <SelectItem value="non-binary">Non-binary</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    
+                    <div className="space-y-2">
+                      <Label htmlFor="orientation">Sexual Orientation (Optional)</Label>
+                      <Select
+                        value={newPartner.orientation}
+                        onValueChange={(value) => setNewPartner({...newPartner, orientation: value})}
+                      >
+                        <SelectTrigger id="orientation">
+                          <SelectValue placeholder="Select orientation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="straight">Straight</SelectItem>
+                          <SelectItem value="gay">Gay</SelectItem>
+                          <SelectItem value="lesbian">Lesbian</SelectItem>
+                          <SelectItem value="bisexual">Bisexual</SelectItem>
+                          <SelectItem value="pansexual">Pansexual</SelectItem>
+                          <SelectItem value="asexual">Asexual</SelectItem>
+                          <SelectItem value="other">Other</SelectItem>
+                          <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
                   
                   <div className="space-y-2">
@@ -317,8 +410,8 @@ export default function HomePage() {
             <TabsContent value="quiz">
               <div className="py-4">
                 <p className="text-sm text-muted-foreground mb-6">
-                  Take this short quiz to determine your partner's love languages. 
-                  The results will automatically update your partner's profile.
+                  Take this short quiz to determine their love languages. 
+                  The results will automatically update their profile.
                 </p>
                 <LoveLanguageQuiz onComplete={handleQuizComplete} />
               </div>
